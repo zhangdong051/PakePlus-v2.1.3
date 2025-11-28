@@ -1,32 +1,987 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <link rel="stylesheet" href="styles.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus App</title>
-        <script type="module" src="/main.js" defer></script>
-    </head>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>无人机控制系统</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <style>
 
-    <body>
-        <main class="container">
-            <h1>Welcome to PakePlus</h1>
-            <form class="row" id="greet-form">
-                <input id="inputValue" placeholder="Enter a something..." />
-            </form>
-            <div class="resultBox">
-                <span>result: </span>
-                <span id="result"></span>
+        
+
+    </style>
+</head>
+<body class="show-video-large">
+    <!-- 启动图片覆盖层 -->
+    <div class="splash-screen" id="splash-screen">
+        <img src="drone-splash.png" alt="无人机控制系统启动" class="splash-image">
+    </div>
+
+    <!-- 顶部状态栏 -->
+    <div class="status-bar">
+        <div class="connection-info">
+            <!-- 添加设置按钮 -->
+            <button class="settings-button" id="settings-button">💻️️设置</button>
+            <input id="roomIdInput" type="text" value="" placeholder="输入设备ID">
+            <button id="stat-button" >🔄连接</button>
+        </div> 
+        <div class="drone-status">		
+			<div id="mobmcc-data"></div>
+            <div id="mobnet-data"></div>
+			<div id="mobbnd-data"></div>
+            <div id="mobpci-data"></div>
+			<div id="mobrsp-data"></div>
+			<div id="mobsnr-data"></div>
+        </div>
+        <!-- 控制按钮组 - 移至顶部状态栏 -->
+        <div class="control-buttons-group">
+		   
+            <button class="control-btn status-btn" onclick="droneARM()"> 🔒解/上锁</button>
+            <button class="control-btn status-btn" onclick="dronetakeoff()">🛫起/降落</button>
+			<button class="control-btn status-btn" onclick="droneJZJL()">🌐精/取落</button>
+			<button class="control-btn status-btn" onclick="droneZTHX()">⏸️暂/继航</button>
+			<button class="control-btn status-btn" onclick="droneRTL()">🏠返/取航</button>
+			<button class="control-btn status-btn" onclick="openDroneSettings()">📅机/设置</button>
+        </div>
+
+    </div>
+    
+    <!-- 主内容区 -->
+    <div class="main-container">
+        <!-- 大窗口区域 -->
+        <div class="large-view">
+            <!-- 大视频窗口 -->
+            <div class="video-large video-container" id="large-video-container">
+                <video autoplay playsinline id="remote-video"></video>
+                <div class="hud-elements">
+   
+                    <!-- 视频加载状态 -->
+                    <div id="video-loading" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; background: rgba(0,0,0,0.5); padding: 10px;">
+                        视频加载中...
+                    </div>
+                    <div id="video-error" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; background: rgba(255,0,0,0.5); padding: 10px;">
+                        视频加载失败
+                    </div>
+					<!-- 在视频容器内添加切换按钮组 -->
+					<div class="video-switch-buttons">
+					<button type="button" class="video-switch-btn" onclick="switchVideoSource(1, event)">📹广角</button>
+					<button type="button" class="video-switch-btn" onclick="switchVideoSource(2, event)">📹变焦</button>
+					<button type="button" class="video-switch-btn" onclick="switchVideoSource(3, event)">🔎变焦+</button>
+					<button type="button" class="video-switch-btn" onclick="switchVideoSource(4, event)">🔎变焦-</button>
+					<button type="button" class="video-switch-btn" onclick="switchVideoSource(5, event)">📹️热成像</button>
+					<button type="button" class="video-switch-btn" onclick="switchVideoSource(6, event)">📹FPV</button>
+                    <button type="button" class="video-switch-btn" onclick="videostartstop()">📹关/推流</button>
+					</div>
+					<div id="speed-data"></div>
+					<div id="alt-data"></div>
+					<div id="lon-data"></div>
+					<div id="lat-data"></div>	
+					<div id="gps-data"></div>
+					<div id="mobtim-data"></div>
+					<div id="batt-data"></div>	
+					<!-- 视频状态显示 -->
+					<div id="video-status" >视频：停止</div>
+					<div class="circle1" id="circle1">
+					<div class="circle"></div>
+					<div class="dashed-line" id="line"></div>
+					</div>
+					
+					<div class="camera-controls">
+						<button type="button" class="video-switch-btn camera-btn" onclick="dronepicter()">拍/📸</button>
+						<button type="button" class="video-switch-btn camera-btn" onclick="dronevideo()">录/🛑</button>
+						<button type="button" class="video-switch-btn camera-btn" onclick="minolianjie()">册/📁</button>
+					</div>
+                </div>
             </div>
-            <div class="invokeBox">
-                <button id="openUrl">open_url_browser</button>
-                <button id="openUrlNew">open_url_new</button>
-                <button id="runCommand">run_command</button>
-                <button id="downloadFile">download_file</button>
-                <button id="getExeDir">get_exe_dir</button>
-                <button id="getEnvVar">get_env_var</button>
-                <button id="findPort">find_port</button>
+            
+            <!-- 大地图窗口 -->
+            <div class="map-large" id="map-container"></div>
+            
+            <!-- 地图搜索框 -->
+            <div class="search-container">
+                <input id="search-input" type="text" placeholder="输入经纬度:116.397,39.908">
+                <button id="search-button" onclick="searchLocation()">🔍搜索</button>
             </div>
-        </main>
-    </body>
+        </div>
+        
+        <!-- 小窗口区域 - 已调整到右上角 -->
+        <div class="small-view" onclick="toggleViews()">
+            <!-- 小地图窗口 -->
+            <div class="small-map" id="small-map-container"></div>
+            
+            <!-- 小视频窗口 -->
+            <div class="small-video video-container">
+                <video autoplay playsinline id="small-remote-video"></video>
+            </div>
+        </div>
+        
+        <!-- 控制区域 -->
+        <div class="controls-container">
+            <!-- 视频模式控制 -->
+            <div class="video-controls">
+                <div class="joystick-area">
+                    <div class="joystick-container" id="left-joystick-container">
+                        <div class="joystick-center"></div>
+                        <div class="joystick" id="left-joystick"></div>
+                        <div class="joystick-label">C高度Z/Q航向E</div>
+                        <div class="joystick-values">
+                            <span>X: <span id="left-joystick-x">0</span></span>
+                            <span>Y: <span id="left-joystick-y">0</span></span>
+                        </div>
+                    </div>
+                    
+                    <div class="joystick-container" id="right-joystick-container">
+                        <div class="joystick-center"></div>
+                        <div class="joystick" id="right-joystick"></div>
+                        <div class="joystick-label">W俯仰S/A横滚D</div>
+                        <div class="joystick-values">
+                            <span>X: <span id="right-joystick-x">0</span></span>
+                            <span>Y: <span id="right-joystick-y">0</span></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="status">🎮使用虚拟摇杆</div>
+            </div>
+            
+            <!-- 地图模式控制 -->
+            <div class="map-controls">
+			    <button class="control-btn" onclick="daorukml()">📁导入航线</button>
+				<!-- 隐藏的文件选择控件（用于触发文件选择对话框） -->
+				<input type="file" id="fileSelector" style="display: none;" accept=".txt" />
+                <button class="control-btn" id="drawing-toggle" onclick="toggleDrawing()">📌开始绘制</button>
+                <button class="control-btn" onclick="removeLastPoint()">❌删除航点</button>
+                <button class="control-btn" onclick="clearAll()">❌清空全部</button>
+                <button class="control-btn" onclick="toggleExecutionPanel()">▶️下发航线</button>
+				<button class="control-btn" onclick="daochukml()">📄导出航线</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 航线执行面板 -->
+    <div id="execution-panel">
+        <button class="close-panel" onclick="toggleExecutionPanel()">×</button>
+        <h3>航线执行参数</h3>
+        
+        <div class="form-group">
+            <label for="flight-height">航线高度 (米)</label>
+            <input type="number" id="flight-height" value="90" min="10" step="5">
+        </div>
+        
+        <div class="form-group">
+            <label for="flight-speed">航线速度 (米/秒)</label>
+            <input type="number" id="flight-speed" value="5" min="1" step="1">
+        </div>
+        
+        <div class="form-group">
+            <label for="return-height">返航高度 (米)</label>
+            <input type="number" id="return-height" value="150" min="10" step="10">
+        </div>
+        
+        <div class="form-group">
+            <label for="lost-action">失联动作</label>
+            <select id="lost-action">
+                <option value="return">自动返航</option>
+                <option value="hover">原地悬停</option>
+                <option value="land">原地降落</option>
+                <option value="continue">继续执行</option>
+            </select>
+        </div>
+        
+        <button class="execute-btn" onclick="executeFlight()">🛫立即执行</button>
+    </div>
+    
+    <!-- 设置对话框 -->
+    <div class="settings-modal" id="settings-modal">
+        <div class="settings-content">
+            <h3>系统设置</h3>
+            <div class="form-group">
+                <label for="video-server">视频服务器地址</label>
+                <input type="text" id="video-server" placeholder="例如: 42.236.120.68">
+            </div>
+            <div class="form-group">
+                <label for="mqtt-server">MQTT服务器地址</label>
+                <input type="text" id="mqtt-server" placeholder="例如: 1.94.67.34:8083">
+            </div>
+            <div class="settings-buttons">
+                <button class="settings-btn cancel-btn" onclick="closeSettings()">取消</button>
+                <button class="settings-btn save-btn" onclick="saveSettings()">保存</button>
+            </div>
+        </div>
+    </div>
+
+	
+	<div class="drone-settings-modal" id="drone-settings-modal">
+    <div class="drone-settings-content">
+        <h3>无人机设置</h3>
+        
+        <!-- 避障设置 -->
+        <div class="toggle-group">
+            <span class="toggle-label">避障功能</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="obstacle-avoidance">
+                <span class="toggle-slider"onclick="enablebzkg()"></span>
+            </label>
+        </div> 
+        <!-- 失联设置 -->
+        <div class="toggle-group">
+            <span class="toggle-label">失联行为</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="obstacle-avoidance">
+                <span class="toggle-slider"onclick="enableslkg()"></span>
+            </label>
+        </div>		
+        <!-- RTK设置 -->
+        <div class="toggle-group">
+            <span class="toggle-label">RTK定位</span>
+            <label class="toggle-switch">
+                <input type="checkbox" id="rtk-enabled">
+                <span class="toggle-slider"onclick="enablertkkg()"></span>
+            </label>
+        </div>
+		<!-- 重置相机设置 -->
+        <div class="form-group">
+            <button class="settings-btn danger-btn" onclick="chongzhixiangji()">重置相机设置🛠️</button>
+        </div>
+		<!-- 更新返航点 -->
+        <div class="form-group">
+            <button class="settings-btn danger-btn" onclick="gengxinfanhangd()">更新返航点(✈️位置)</button>
+        </div>
+        <!-- 格式化SD卡 -->
+        <div class="form-group">
+            <button class="settings-btn danger-btn" onclick="formatSdCard()">格式化SD卡(✈️存储)</button>
+        </div>
+		
+		<!-- 返航高度设置 -->
+        <div class="form-group">
+            <label for="return-altitude">返航高度 (米)</label>
+            <input type="number" id="return-altitude" value="300" min="10" max="1500" step="1">
+        </div>
+        
+        <div class="settings-buttons">
+            <button class="settings-btn cancel-btn" onclick="closeDroneSettings()">取消</button>
+            <button class="settings-btn save-btn" onclick="saveDroneSettings()">保存设置</button>
+        </div>
+    </div>
+</div>
+
+
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: "bb3b3425840367f4ef6fc0f03d51a637",
+        };
+    </script>
+    <!--<script type="text/javascript" src="https://webapi.amap.com/maps?v=1.4.15&key=c2c5ca77bbbc732a1144127e4ae9994b&plugin=AMap.Scale,AMap.UI,AMap.Terrain"></script> -->
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=c2c5ca77bbbc732a1144127e4ae9994b&plugin=AMap.ToolBar,AMap.HawkEye"></script>
+    <script src="mqtt.min.js"></script>
+   <!--<script type="text/javascript" src="https://cache.amap.com/lbs/static/addToolbar.js"></script> -->
+   <!-- 引入高德地图ui库 -->
+   <script src="https://webapi.amap.com/loader.js"></script>
+   <!--  <script src="https://webapi.amap.com/ui/1.1/main.js?v=1.1.1"></script> -->
+	<script src="mapin.js"></script>
+    <!-- 引入视频播放相关SDK -->
+    <script type="text/javascript" src="adapter-7.4.0.min.js"></script>
+    <script type="text/javascript" src="srs.sdk.js"></script>
+	<!-- 移除原有的静态引入 -->
+	<!-- <script src="./mavlink2send.js"></script>
+	<script src="./mavlink_functions.js"></script>
+	<script src="./jpkz.js"></script>
+	<script src="./gamepad.js"></script>
+	<script src="coordtransform.js"></script> -->
+	<!-- 航线绘制逻辑 -->
+	<script src="./hzhxzx.js"></script>
+	<!--<script src="./xnyg.js"></script> -->
+    <script>
+	// 添加启动图片关闭功能
+    document.addEventListener('DOMContentLoaded', function() {
+        const splashScreen = document.getElementById('splash-screen');
+        
+        // 点击图片关闭启动界面
+        splashScreen.addEventListener('click', function() {
+            // 添加淡出效果
+            splashScreen.style.opacity = '0';
+            // 动画结束后隐藏元素
+            setTimeout(() => {
+                splashScreen.style.display = 'none';
+                // 启动程序正常运行逻辑
+                initApplication();
+            }, 500);
+        });
+    });
+
+    // 应用初始化函数
+    function initApplication() {
+        console.log('开始正常运行');
+        // 这里可以添加程序启动需要执行的初始化代码
+    }
+
+    let config = {
+        // 从本地存储获取，无则使用默认值
+        videoServer: localStorage.getItem('droneVideoServer') || '42.236.120.68',
+        mqttServer: localStorage.getItem('droneMqttServer') || '1.94.67.34:8083'
+    };
+	
+	let hudpitch = 0; // 俯仰
+    let hudroll = 0; //横滚
+    let roomId = localStorage.getItem('droneRoomId') || '864284040603669';
+    let MQTTXterminals = '/terminal/d10/' + roomId + '/setInfo';
+    let MQTTXterminalg = '/terminal/d10/' + roomId + '/getInfo';
+
+	// 在全局变量区域添加航迹相关变量
+	let flightPath = []; // 存储航迹点
+	const MAX_PATH_POINTS = 500; // 最大航迹点数量，防止内存溢出
+	let pathLineLarge = null; // 大地图航迹线
+	let pathLineSmall = null; // 小地图航迹线
+
+    // 视频相关状态
+    let videoSdk = null;
+    let isVideoPlaying = false;
+	
+	 // 添加标记变量用于控制脚本加载状态
+	 let areMavlinkScriptsLoaded = false;
+    // 动态加载脚本的函数
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.body.appendChild(script);
+        });
+    }
+
+   document.querySelector("#roomIdInput").value = roomId;
+	let rc0 = 0, rc1 = 0, rc2 = 0, rc3 = 0, rc4 = 0, rc5 = 0, rc6 = 0;//定义四个摇杆 
+	
+		//开始连接mqtt接收数据	
+	    console.log(mqtt); // 将在全局初始化一个 mqtt 变量
+        const logElement = document.getElementById('log');
+        const connectButton    = document.getElementById('stat-button');
+
+        function log(message) {
+            const now = new Date().toLocaleTimeString();
+            const logEntry = `[${now}] ${message}\n`;
+            logElement.value = logEntry + (logElement.value || '');
+        }
+		const logContainer = document.getElementById('logContainer');
+        function connect() {
+			// 更新roomId
+            updateRoomId();
+            
+			if(mqtt && mqtt.connected){
+				alert("MQ已经连接");
+				return;
+			}
+            // 构建WebSocket URL: ws://<host>:<port>/mqtt
+             const url = `ws://${config.mqttServer}/mqtt`;
+			 
+			// 创建客户端实例
+			const options = {
+			  // Clean session
+			  clean: false,
+			  connectTimeout: 4000,
+			  // 认证信息
+			  clientId: 'emqx_test2',
+			  username: '43',
+			  password: '123456',
+			  keepalive:600,
+			  reconnnectPeriod: 10*1000
+			}
+            const client = mqtt.connect(url, options);
+			mqtt = client;
+            client.on('connect', async function() {
+				client.subscribe(MQTTXterminalg);
+				console.log(MQTTXterminalg);
+				console.log('Connected');
+				alert("MQ已经连接");
+				 // 连接成功后加载所需脚本（仅加载一次）
+            if (!areMavlinkScriptsLoaded) {
+                try {
+                    await Promise.all([
+					    loadScript('./gamepadds.js'),
+                        loadScript('./mavlink2send.js'),
+                        loadScript('./mavlink_functions.js'),
+                        loadScript('./jpkz.js'),
+						loadScript('./xnyg.js'),
+                        loadScript('coordtransform.js')
+                    ]);
+                    areMavlinkScriptsLoaded = true;
+                   // console.log('相关脚本加载完成');
+                } catch (error) {
+                    console.error('脚本加载失败:', error);
+                }	
+				}
+			// 连接成功后启动视频播放
+                startVideoPlay();
+			    initVideoControl();//初始化视频区域点击
+				initVideoControls();
+				if (typeof initJoysticks === 'function') {
+                initJoysticks();
+            }
+			})	
+
+			// 接收消息
+			client.on('message', function (topic, message) {
+				try {
+					// 将Buffer类型的message转换为字符串，再解析为JSON对象
+					const str = message.toString(); 
+					const jsonData = JSON.parse(str);  // 解析JSON对象
+					
+					//console.log('收到 MQTTXterminalg 主题消息:', jsonData);
+					if (topic != MQTTXterminalg) {
+						mqtt.unsubscribe(topic);
+					}
+					// 使用独立JS文件中的函数处理数据
+					const extractedData = processMqttData(jsonData);
+					
+					// 更新页面显示
+					if (extractedData) {
+						updateDataDisplay(extractedData);
+						
+						// 如果需要更新地图标记位置，可以在这里添加
+						if (extractedData.gps_longitude && extractedData.gps_latitude) {
+							window.initialLon = extractedData.gps_longitude.toFixed(6);
+							window.initialLat = extractedData.gps_latitude.toFixed(6);
+							// console.log("lon：", window.currentLon);
+							// 动态修改大地图标记旋转角度为90度
+						//	window.largeMarker.setRotation(35);
+							updateMarkerPosition();	  	
+						}
+					}
+				} catch (error) {
+					//console.error('消息解析失败:', error, '原始消息:', message.toString());
+				}
+			})
+
+            client.on('error', function(err) {
+            console.error('MQTT连接错误:', err);
+            });
+        }
+		function mqDisconnect() {
+		   console.log('dsConnected');
+		   alert("mq断开连接");
+           stopVideoPlay();
+		   if(mqtt) {
+               mqtt.connected = false;
+               mqtt.end(true);
+           }
+        }
+		
+		
+          // 更新RoomId并重新初始化相关配置
+        function updateRoomId() {
+            const newRoomId = document.querySelector("#roomIdInput").value.trim();
+            if (newRoomId && newRoomId !== roomId) {
+                roomId = newRoomId;
+                // 更新MQTT主题
+                MQTTXterminals = '/terminal/d10/'+ roomId+ '/setInfo';
+                MQTTXterminalg = '/terminal/d10/'+ roomId+ '/getInfo';
+
+                // 如果视频正在播放，重新加载
+                if (isVideoPlaying) {
+                    restartVideoPlay();
+                }
+                // 如果MQTT已连接，重新订阅
+                if (mqtt && mqtt.connected) {
+                    mqtt.unsubscribe(MQTTXterminalg);
+                    mqtt.subscribe(MQTTXterminalg);
+                }
+            }
+        }
+
+		function uint8ArrayToHexString(uint8Array) {
+            return Array.from(uint8Array).map(byte => byte.toString(16).padStart(2, '0')).join('');
+        }
+		
+		
+       connectButton.addEventListener('click', connect);
+       // 监听roomId输入框变化
+       document.querySelector("#roomIdInput").addEventListener('change', updateRoomId);
+       
+       // 设置按钮事件
+       document.getElementById('settings-button').addEventListener('click', openSettings);
+
+
+    // 视频播放相关函数
+    async function startVideoPlay() {
+        try {
+            // 显示加载状态
+            document.getElementById('video-loading').style.display = 'block';
+            document.getElementById('video-error').style.display = 'none';
+            document.getElementById('video-status').textContent = '视频：加载中...';
+            
+            // 关闭已有连接
+            if (videoSdk) {
+                await videoSdk.close();
+            }
+
+            videoSdk = new SrsRtcWhipWhepAsync();
+            
+            // 将SDK的流绑定到两个视频元素
+            document.getElementById('remote-video').srcObject = videoSdk.stream;
+            document.getElementById('small-remote-video').srcObject = videoSdk.stream;
+
+            // 使用roomId和配置的视频服务器地址动态生成视频地址
+            const whepUrl = `http://${config.videoServer}:1985/rtc/v1/whep/?app=live&stream=${roomId}.flv`;
+            console.log('视频地址:', whepUrl);
+
+            await videoSdk.play(whepUrl, {
+                videoOnly: true,  // 只播放视频
+                audioOnly: false
+            });
+            
+            // 隐藏加载状态，更新状态信息
+            document.getElementById('video-loading').style.display = 'none';
+            document.getElementById('video-status').textContent = '视频：播放中';
+            isVideoPlaying = true;
+
+        } catch (error) {
+            console.error('视频播放错误:', error);
+            document.getElementById('video-loading').style.display = 'none';
+            document.getElementById('video-error').style.display = 'block';
+            document.getElementById('video-status').textContent = '视频：加载失败';
+            
+            // 清理连接
+            if (videoSdk) {
+                try {
+                    await videoSdk.close();
+                } catch (closeErr) {
+                    console.error('关闭视频连接错误:', closeErr);
+                }
+                videoSdk = null;
+            }
+            isVideoPlaying = false;
+        }
+    }
+
+    // 停止视频播放
+    async function stopVideoPlay() {
+        if (videoSdk) {
+            try {
+                await videoSdk.close();
+                document.getElementById('video-status').textContent = '视频：已停止';
+            } catch (error) {
+                console.error('停止视频错误:', error);
+                document.getElementById('video-status').textContent = '视频：停止失败';
+            }
+            videoSdk = null;
+            isVideoPlaying = false;
+        }
+    }
+
+    // 重新加载视频
+    async function restartVideoPlay() {
+        await stopVideoPlay();
+        await startVideoPlay();
+    }
+
+    // 设置对话框相关函数
+    function openSettings() {
+        // 加载当前配置到输入框
+        document.getElementById('video-server').value = config.videoServer;
+        document.getElementById('mqtt-server').value = config.mqttServer;
+        // 显示对话框
+        document.getElementById('settings-modal').style.display = 'flex';
+    }
+    
+    function closeSettings() {
+        // 隐藏对话框
+        document.getElementById('settings-modal').style.display = 'none';
+    }
+    
+    function saveSettings() {
+        // 获取输入框值
+        const newVideoServer = document.getElementById('video-server').value.trim();
+        const newMqttServer = document.getElementById('mqtt-server').value.trim();
+
+        // 验证并更新配置
+        if (newVideoServer) {
+            config.videoServer = newVideoServer;
+            // 保存到本地存储
+            localStorage.setItem('droneVideoServer', newVideoServer);
+        }
+        if (newMqttServer) {
+            config.mqttServer = newMqttServer;
+            // 保存到本地存储
+            localStorage.setItem('droneMqttServer', newMqttServer);
+        }
+
+        // 关闭设置对话框
+        closeSettings();
+        
+        // 提示保存成功
+        alert('设置已保存，下次启动将生效');
+    }
+
+
+	
+//hud互动开始
+
+	function linehud(){
+		const line = document.getElementById('line');
+		const circle1 = document.getElementById('circle1');
+	   let lineTop = hudpitch+50; // 俯仰
+	   let lineRotation = hudroll; //横滚 
+		line.style.top = `${lineTop}%`;
+		line.style.transform = `rotate(${lineRotation}deg)`;
+	   }
+	   
+   //hud互动结束
+
+//***************数据处理结束********************/   
+        // 存储窗口状态信息
+        const windowState = {
+            video: {
+                zoom: 1,
+                position: { x: 0, y: 0 }
+            },
+            map: {
+                zoom: 14,
+                center: [114.388185, 36.148881]
+            }
+        };
+        
+        // 切换视图模式并同步缩放状态
+		function toggleViews() {
+			const body = document.body;
+			const isVideoMode = body.classList.contains('show-video-large');
+			
+			// 保存当前大窗口状态
+			if (isVideoMode) {
+				saveVideoState();
+				applyMapState();
+			} else {
+				saveMapState();
+				applyVideoState();
+			}
+			
+			// 切换显示模式类
+			body.classList.toggle('show-video-large');
+			body.classList.toggle('show-map-large');
+			
+			// 关键修复：强制地图重新计算尺寸
+			setTimeout(() => {
+				if (window.largeMap) window.largeMap.resize();
+				if (window.smallMap) window.smallMap.resize();
+			}, 50); // 短暂延迟确保DOM已更新
+			
+			// 同步小窗口内容
+			syncSmallWindowContent();
+		}
+        // 保存视频窗口状态
+        function saveVideoState() {
+            windowState.video.zoom = 1;
+        }
+        
+        // 应用视频窗口状态
+        function applyVideoState() {
+            const videoElement = document.getElementById('remote-video');
+            if (videoElement) {
+                videoElement.style.transform = `scale(${windowState.video.zoom})`;
+            }
+        }
+        
+        // 保存地图窗口状态
+        function saveMapState() {
+            if (window.largeMap) {
+                windowState.map.zoom = window.largeMap.getZoom();
+                windowState.map.center = window.largeMap.getCenter();
+            }
+        }
+        
+        // 应用地图窗口状态
+        function applyMapState() {
+            if (window.largeMap) {
+                window.largeMap.setZoomAndCenter(
+                    windowState.map.zoom,
+                    windowState.map.center
+                );
+            }
+        }
+        
+        // 同步小窗口内容与大窗口
+        function syncSmallWindowContent() {
+            const isVideoMode = document.body.classList.contains('show-video-large');
+            
+            if (isVideoMode) {
+                if (window.largeMap && window.smallMap) {
+                    window.smallMap.setZoomAndCenter(
+                        window.largeMap.getZoom(),
+                        window.largeMap.getCenter()
+                    );
+                }
+            }
+        }
+        
+        // 初始化地图 - 创建两个地图实例，保持同步
+        function initMaps() {
+            // 大地图
+            window.largeMap = new AMap.Map("map-container", {
+                zoom: windowState.map.zoom,
+                center: windowState.map.center,
+                resizeEnable: true,
+                rotateEnable: true,//是否开启地图旋转交互 鼠标右键 + 鼠标画圈移动 或 键盘Ctrl + 鼠标画圈移动
+                pitchEnable: true,
+                pitch: 0,
+                rotation: 0,
+                viewMode: '2D',//开启3D视图,默认为关闭
+                zooms: [2, 20],
+                terrain: true// 开启地形图
+				
+				
+            });
+            
+            // 小地图
+            window.smallMap = new AMap.Map("small-map-container", {
+                zoom: windowState.map.zoom,
+                center: windowState.map.center,
+                resizeEnable: true,
+                rotateEnable: false,
+                pitchEnable: false,
+                viewMode: '2D',
+                zooms: [2, 20]
+            });
+            
+            // 为两个地图添加相同的控件和设置
+            setupMap(window.largeMap);
+            setupMap(window.smallMap);
+            
+            // 监听大地图事件，同步到小地图
+            window.largeMap.on('zoomend', function() {
+                if (document.body.classList.contains('show-map-large')) {
+                    window.smallMap.setZoom(window.largeMap.getZoom());
+                }
+            });
+            
+            window.largeMap.on('moveend', function() {
+                if (document.body.classList.contains('show-map-large')) {
+                    window.smallMap.setCenter(window.largeMap.getCenter());
+                }
+            });
+            
+            // 初始化飞机标记
+            initDroneMarker();
+        }
+        
+        // 地图设置 - 已移除罗盘和缩放控件
+        function setupMap(map) {
+            // 仅保留比例尺控件
+            AMap.plugin(["AMap.Scale"], function() {
+                map.addControl(new AMap.Scale());
+            });
+
+            // 保留图层切换控件
+            AMapUI.loadUI(['control/BasicControl'], function(BasicControl) {
+                var layerCtrl = new BasicControl.LayerSwitcher({
+                    theme: 'common',
+                    position: 'tr'
+                });
+                map.addControl(layerCtrl);
+            });
+            
+            // 地图点击事件
+            map.on('click', function(e) {
+                const lngLatInput = document.getElementById("lngLatInfo");
+                if (lngLatInput) {
+                    lngLatInput.value = e.lnglat.getLng() + ',' + e.lnglat.getLat();
+                }
+                console.log(e.lnglat.getLng() + ',' + e.lnglat.getLat());
+            });
+        }
+        
+        // 初始化无人机标记 - 使用在线图标确保显示
+			function initDroneMarker() {
+				const initialLon = window.initialLon || 114.388185;
+				const initialLat = window.initialLat || 36.148881;
+				
+				const position = [initialLon, initialLat];
+				// 使用无人机图标显示
+				const icon = new AMap.Icon({
+					size: new AMap.Size(35, 35),
+					image: 'quadx.png', // 替换为实际无人机图标URL
+					imageOffset: new AMap.Pixel(0, 0),
+					anchor: 'center', // 旋转中心点（图标中心）
+					imageSize: new AMap.Size(35, 35),
+				});
+				
+				// 大地图标记
+				window.largeMarker = new AMap.Marker({
+					position: position,
+					map: window.largeMap,
+					icon: icon,
+					zIndex: 400,
+					
+				});
+				
+				// 小地图标记（同样添加旋转属性）
+				window.smallMarker = new AMap.Marker({
+					position: position,
+					map: window.smallMap,
+					icon: icon,
+					zIndex: 400,
+					
+				});
+//等待加入mark旋转逻辑
+			}
+        
+// 修改updateMarkerPosition函数，添加航迹绘制逻辑
+function updateMarkerPosition() {
+    const currentLon = parseFloat(window.initialLon);
+    const currentLat = parseFloat(window.initialLat);
+    if (isNaN(currentLon) || isNaN(currentLat)) return;
+
+    const newPosition = [currentLon, currentLat];
+    window.largeMarker.setPosition(newPosition);
+    window.smallMarker.setPosition(newPosition);
+
+    // 添加新位置到航迹数组
+    flightPath.push(newPosition);
+    
+    // 限制航迹点数量
+    if (flightPath.length > MAX_PATH_POINTS) {
+        flightPath.shift(); // 移除最早的点
+    }
+
+    // 绘制航迹线
+    drawFlightPath();
+
+    // 保持原有的地图居中逻辑
+    if (document.body.classList.contains('show-video-large')) {
+        window.smallMap.setCenter(newPosition);
+    } else {
+        window.largeMap.setCenter(newPosition);
+    }
+}
+
+// 添加绘制航迹线的函数
+function drawFlightPath() {
+    // 至少需要两个点才能绘制线段
+    if (flightPath.length < 2) return;
+
+    // 定义航迹线样式：灰色虚线
+    const pathStyle = {
+        strokeColor: "#999", // 灰色
+        strokeWeight: 2,
+        strokeStyle: "dashed", // 虚线
+        strokeDasharray: [10, 5], // 虚线样式
+        zIndex: 350 // 确保在标记下方
+    };
+
+    // 更新或创建大地图航迹线
+    if (pathLineLarge) {
+        pathLineLarge.setPath(flightPath);
+    } else {
+        pathLineLarge = new AMap.Polyline({
+            path: flightPath,
+            ...pathStyle,
+            map: window.largeMap
+        });
+    }
+
+    // 更新或创建小地图航迹线
+    if (pathLineSmall) {
+        pathLineSmall.setPath(flightPath);
+    } else {
+        pathLineSmall = new AMap.Polyline({
+            path: flightPath,
+            ...pathStyle,
+            map: window.smallMap
+        });
+    }
+}
+
+// 添加清除航迹的函数（可选，用于需要重置航迹的场景）
+function clearFlightPath() {
+    flightPath = [];
+    if (pathLineLarge) {
+        pathLineLarge.remove();
+        pathLineLarge = null;
+    }
+    if (pathLineSmall) {
+        pathLineSmall.remove();
+        pathLineSmall = null;
+    }
+}
+ 
+      
+        // 地图搜索功能
+        function searchLocation() {
+            const input = document.getElementById('search-input').value.trim();
+            if (!input) return;
+            
+            const [lng, lat] = input.split(',').map(Number);
+            if (!isNaN(lng) && !isNaN(lat)) {
+                window.largeMap.setCenter([lng, lat]);
+                window.smallMap.setCenter([lng, lat]);
+                windowState.map.center = [lng, lat];
+            }
+        }
+
+
+        
+        // 切换航线执行面板
+        function toggleExecutionPanel() {
+            const panel = document.getElementById('execution-panel');
+            panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        }
+<!-- 修改roomId初始化和存储相关代码 -->
+    // 修改updateRoomId函数，添加本地存储逻辑
+    function updateRoomId() {
+        const newRoomId = document.querySelector("#roomIdInput").value.trim();
+        if (newRoomId && newRoomId !== roomId) {
+            roomId = newRoomId;
+            // 保存到本地存储
+            localStorage.setItem('droneRoomId', roomId);
+            
+            // 更新MQTT主题
+            MQTTXterminals = '/terminal/d10/' + roomId + '/setInfo';
+            MQTTXterminalg = '/terminal/d10/' + roomId + '/getInfo';
+
+            // 如果视频正在播放，重新加载
+            if (isVideoPlaying) {
+                restartVideoPlay();
+            }
+            // 如果MQTT已连接，重新订阅
+            if (mqtt && mqtt.connected) {
+                mqtt.unsubscribe(MQTTXterminalg);
+                mqtt.subscribe(MQTTXterminalg);
+            }
+        }
+    }
+
+    // 页面加载时从本地存储读取并设置输入框值
+    document.addEventListener('DOMContentLoaded', function() {
+        const splashScreen = document.getElementById('splash-screen');
+        
+        // 点击图片关闭启动界面
+        splashScreen.addEventListener('click', function() {
+            splashScreen.style.opacity = '0';
+            setTimeout(() => {
+                splashScreen.style.display = 'none';
+                initApplication();
+            }, 500);
+        });
+
+        // 设置服务器地址输入框的值（从本地存储或默认值）
+        document.getElementById('video-server').value = config.videoServer;
+        document.getElementById('mqtt-server').value = config.mqttServer;
+
+        // 设置roomId输入框的值
+        const savedRoomId = localStorage.getItem('droneRoomId');
+        if (savedRoomId) {
+            document.querySelector("#roomIdInput").value = savedRoomId;
+        } else {
+            document.querySelector("#roomIdInput").value = '864284040603669';
+        }
+    });
+
+	
+        // 页面加载完成后初始化
+        window.onload = () => {
+            initMaps();
+            syncSmallWindowContent();
+
+        };
+    </script>
+</body>
 </html>
